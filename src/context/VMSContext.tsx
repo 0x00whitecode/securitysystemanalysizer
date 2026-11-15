@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Alert, DatabaseState, MovementLog, MovementStatus, Registration, SecurityRecord, Staff, User, VideoCapture } from '../types/vms';
+import { createLiveSync } from '../lib/liveSync';
 import { persistDatabaseToSupabase, readDatabaseFromSupabase } from '../lib/vmsSupabase';
 import { readDatabase, saveDatabase } from '../utils/dbStorage';
 
@@ -18,6 +19,8 @@ interface VMSContextValue {
   resetUserPassword: (userId: number, password?: string) => User | null;
   toggleUserBlock: (userId: number) => User | null;
   createRegistration: (registration: Registration) => Registration;
+  requestStaffApproval: (registrationId: number, staffNo: string) => Registration | null;
+  updateRegistrationHostApproval: (registrationId: number, status: 'Approved' | 'Rejected' | 'Expired', hostStaffNo: string) => Registration | null;
   submitSecurityDecision: (decision: {
     R_id: number;
     Staff_No: string;
@@ -41,6 +44,26 @@ const VMSContext = createContext<VMSContextValue | undefined>(undefined);
 
 export function VMSProvider({ children }: { children: ReactNode }) {
   const [database, setDatabase] = useState<DatabaseState>(() => readDatabase());
+  const liveSyncRef = useRef<{ sendState: (state: DatabaseState) => void; close: () => void } | null>(null);
+
+  useEffect(() => {
+    const sync = createLiveSync((incomingState) => {
+      setDatabase((currentState) => {
+        const currentJson = JSON.stringify(currentState);
+        const incomingJson = JSON.stringify(incomingState);
+        if (currentJson === incomingJson) return currentState;
+
+        saveDatabase(incomingState);
+        return incomingState;
+      });
+    });
+
+    liveSyncRef.current = sync;
+
+    return () => {
+      sync.close();
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -67,6 +90,7 @@ export function VMSProvider({ children }: { children: ReactNode }) {
 
   const save = async (next: DatabaseState) => {
     setDatabase(next);
+    liveSyncRef.current?.sendState(next);
     await persistDatabaseToSupabase(next);
     saveDatabase(next);
   };
@@ -150,6 +174,79 @@ export function VMSProvider({ children }: { children: ReactNode }) {
     };
     void save(next);
     return registration;
+  };
+
+  const requestStaffApproval = (registrationId: number, staffNo: string) => {
+    const target = database.registrations.find((entry) => entry.R_id === registrationId);
+    if (!target) return null;
+
+    const updated: Registration = {
+      ...target,
+      Staff_No: staffNo,
+      Host_Approval_Status: 'Pending',
+      Host_Request_At: new Date().toISOString(),
+      Host_Approval_At: undefined,
+      Host_Approved_By: undefined,
+    };
+
+    const nextAlert: Alert = {
+      Alert_ID: Date.now() + registrationId + 10,
+      R_id: registrationId,
+      Staff_No: staffNo,
+      Alert_Type: 'Staff approval request',
+      Alert_Message: `${target.Name} is requesting access for ${target.Purpose.toLowerCase()} visit. Please approve or reject this visitor request.`,
+      Alert_Date: new Date().toISOString().slice(0, 10),
+      Alert_Time: new Date().toTimeString().slice(0, 5),
+      Delivery_Status: 'Sent',
+      Response_Status: 'Pending',
+    };
+
+    const next = {
+      ...database,
+      registrations: database.registrations.map((entry) => (entry.R_id === registrationId ? updated : entry)),
+      alerts: [...database.alerts, nextAlert],
+    };
+
+    void save(next);
+    return updated;
+  };
+
+  const updateRegistrationHostApproval = (registrationId: number, status: 'Approved' | 'Rejected' | 'Expired', hostStaffNo: string) => {
+    const target = database.registrations.find((entry) => entry.R_id === registrationId);
+    if (!target) return null;
+
+    const updated: Registration = {
+      ...target,
+      Host_Approval_Status: status,
+      Host_Approval_At: new Date().toISOString(),
+      Host_Approved_By: status === 'Approved' ? hostStaffNo : undefined,
+    };
+
+    const nextAlert: Alert = {
+      Alert_ID: Date.now() + registrationId,
+      R_id: registrationId,
+      Staff_No: 'SEC-001',
+      Alert_Type: 'Host approval',
+      Alert_Message:
+        status === 'Approved'
+          ? `${target.Name} was approved by staff ${hostStaffNo} and is awaiting security verification.`
+          : status === 'Expired'
+            ? `${target.Name}'s staff approval expired before a response was received.`
+            : `${target.Name} was not approved by staff ${hostStaffNo}.`,
+      Alert_Date: new Date().toISOString().slice(0, 10),
+      Alert_Time: new Date().toTimeString().slice(0, 5),
+      Delivery_Status: 'Sent',
+      Response_Status: 'Pending',
+    };
+
+    const next = {
+      ...database,
+      registrations: database.registrations.map((entry) => (entry.R_id === registrationId ? updated : entry)),
+      alerts: [...database.alerts, nextAlert],
+    };
+
+    void save(next);
+    return updated;
   };
 
   const addCapture = (capture: VideoCapture) => {
@@ -245,7 +342,9 @@ export function VMSProvider({ children }: { children: ReactNode }) {
 
     const registration = database.registrations.find((entry) => entry.R_id === decision.R_id);
     const nextRegistrations = database.registrations.map((entry) =>
-      entry.R_id === decision.R_id ? { ...entry, Verified: decision.Visitor_Status === 'Approved' } : entry,
+      entry.R_id === decision.R_id
+        ? { ...entry, Verified: decision.Visitor_Status === 'Approved', Host_Approval_Status: entry.Host_Approval_Status ?? 'Approved' }
+        : entry,
     );
 
     const alertMessage =
@@ -315,6 +414,8 @@ export function VMSProvider({ children }: { children: ReactNode }) {
       resetUserPassword,
       toggleUserBlock,
       createRegistration,
+      requestStaffApproval,
+      updateRegistrationHostApproval,
       submitSecurityDecision,
       addAlert,
       acknowledgeAlert,

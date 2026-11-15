@@ -116,3 +116,19 @@ Material Design 3 uses color roles derived from a primary key color. Implement t
 2. **Strict Accessibility**: Ensure all icon-only buttons have `aria-label` attributes and all inputs have corresponding `<label>` elements.
 3. **Responsive Grid**: Layouts must automatically adjust from single-column mobile view (`grid-cols-1`) to multi-column desktop workstation view (`lg:grid-cols-12`).
 4. **No Raw Unstyled Forms**: Never output standard browser-default inputs, select boxes, or buttons. Wrap all form elements in styled Material-inspired components.
+
+
+
+
+
+
+staff should be the one to grant visit permission to the visitor. than forward response to security for verification. security should be the one to verify the visitor and grant permission to enter the premises.
+
+
+change the input field degree to qualification. 
+
+
+admin should be able to add new staff and security personnel. admin should also be able to view all the visitor logs and generate reports. admin should also be able to manage the system settings and configurations.
+
+
+if the staf is offline let he send a massage to whatsapp masage..

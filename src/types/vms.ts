@@ -2,6 +2,7 @@ export type AccessLevel = 'Admin' | 'Security' | 'Staff' | 'Visitor';
 export type VisitorStatus = 'Pending' | 'Approved' | 'Rejected';
 export type AlertStatus = 'Pending' | 'Sent' | 'Failed' | 'Delivered';
 export type ResponseStatus = 'Pending' | 'Acknowledged' | 'Resolved';
+export type HostApprovalStatus = 'Pending' | 'Approved' | 'Rejected' | 'Expired';
 
 export interface User {
   id: number;
@@ -19,7 +20,7 @@ export interface Staff {
   Email: string;
   Dob: string;
   Address: string;
-  Degree: string;
+  Qualification: string;
   POS: string;
   Phone_No: string;
   Sex: string;
@@ -36,6 +37,10 @@ export interface Registration {
   Phone: string;
   Email: string;
   Sex: string;
+  Host_Approval_Status?: HostApprovalStatus;
+  Host_Request_At?: string;
+  Host_Approval_At?: string;
+  Host_Approved_By?: string;
   Verified?: boolean;
 }
 

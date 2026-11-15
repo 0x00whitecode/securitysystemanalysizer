@@ -6,7 +6,7 @@ import { useVMS } from '../context/VMSContext';
 
 export function HostDashboard() {
   const { user } = useAuth();
-  const { alerts, acknowledgeAlert, registrations, securityRecords } = useVMS();
+  const { alerts, acknowledgeAlert, registrations, updateRegistrationHostApproval } = useVMS();
   const hostStaffId = user?.Staff_No ?? '';
   const [dismissedAlertIds, setDismissedAlertIds] = useState<number[]>([]);
 
@@ -46,6 +46,17 @@ export function HostDashboard() {
     setDismissedAlertIds((current) => (current.includes(alertId) ? current : [...current, alertId]));
   };
 
+  const handleHostApproval = (registrationId: number, status: 'Approved' | 'Rejected') => {
+    updateRegistrationHostApproval(registrationId, status, hostStaffId);
+  };
+
+  const sendWhatsAppMessage = (visitor: { Name: string; Phone: string }) => {
+    const number = visitor.Phone.replace(/\D/g, '');
+    const message = encodeURIComponent(`Hello ${visitor.Name}, your visit request is being processed. Please wait for security verification.`);
+    const whatsappUrl = `https://wa.me/${number}?text=${message}`;
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="space-y-6 p-4 lg:p-8">
       <div className="flex items-center justify-between gap-3">
@@ -78,34 +89,45 @@ export function HostDashboard() {
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-xl font-semibold text-slate-900">Visitor queue</h2>
           <div className="mt-5 space-y-4">
-            {pendingVisitors.map((visitor) => {
-              const security = securityRecords.find((record) => record.R_id === visitor.R_id);
-              return (
-                <div key={visitor.R_id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-100 text-blue-700">
-                      <UserRound className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-800">{visitor.Name}</p>
-                      <p className="text-sm text-slate-500">{visitor.Purpose} • {visitor.Dated}</p>
-                    </div>
+            {pendingVisitors.map((visitor) => (
+              <div key={visitor.R_id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+                    <UserRound className="h-5 w-5" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800">
-                      {security?.Visitor_Status ?? 'Pending'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => acknowledgeAlert(hostAlerts[0]?.Alert_ID ?? 0, 'Acknowledged')}
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
-                    >
-                      Accept
-                    </button>
+                  <div>
+                    <p className="font-semibold text-slate-800">{visitor.Name}</p>
+                    <p className="text-sm text-slate-500">{visitor.Purpose} • {visitor.Dated}</p>
                   </div>
                 </div>
-              );
-            })}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800">
+                    {visitor.Host_Approval_Status ?? 'Pending'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleHostApproval(visitor.R_id, 'Approved')}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleHostApproval(visitor.R_id, 'Rejected')}
+                    className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700"
+                  >
+                    Reject
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => sendWhatsAppMessage(visitor)}
+                    className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700"
+                  >
+                    WhatsApp
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

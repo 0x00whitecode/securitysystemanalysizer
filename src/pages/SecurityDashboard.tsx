@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle2, Clock3, ShieldCheck, UserPlus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { SearchBar } from '../components/SearchBar';
 import { VisitorBadge } from '../components/VisitorBadge';
 import { WebcamCapture } from '../components/WebcamCapture';
@@ -7,7 +7,7 @@ import { useVMS } from '../context/VMSContext';
 import type { Registration } from '../types/vms';
 
 export function SecurityDashboard() {
-  const { registrations, createRegistration, submitSecurityDecision, captures, addCapture } = useVMS();
+  const { registrations, createRegistration, submitSecurityDecision, captures, addCapture, requestStaffApproval, updateRegistrationHostApproval, staff } = useVMS();
   const [search, setSearch] = useState('');
   const [selectedRegistrationId, setSelectedRegistrationId] = useState<number | null>(null);
   const [isCaptureOpen, setIsCaptureOpen] = useState(false);
@@ -34,25 +34,39 @@ export function SecurityDashboard() {
   const filtered = useMemo(
     () =>
       registrations.filter((record) =>
-        [record.Name, record.Phone, record.Email, record.Staff_No]
-          .join(' ')
-          .toLowerCase()
-          .includes(search.toLowerCase()),
+        [record.Name, record.Phone, record.Email, record.Staff_No].join(' ').toLowerCase().includes(search.toLowerCase()),
       ),
     [registrations, search],
   );
 
   const summary = useMemo(
     () => ({
-      pending: registrations.filter((record) => !record.Verified).length,
+      pending: registrations.filter((record) => record.Host_Approval_Status === 'Pending' || (record.Host_Approval_Status === 'Approved' && !record.Verified)).length,
       approved: registrations.filter((record) => record.Verified === true).length,
-      rejected: registrations.filter((record) => record.Verified === false && !!record.Name).length,
+      rejected: registrations.filter((record) => record.Verified === false && !!record.Name && record.Host_Approval_Status === 'Rejected').length,
+      expired: registrations.filter((record) => record.Host_Approval_Status === 'Expired').length,
     }),
     [registrations],
   );
 
   const selectedRegistration =
     filtered.find((record) => record.R_id === selectedRegistrationId) ?? filtered[0] ?? null;
+  const selectedStaff = staff.find((member) => member.Staff_No === selectedRegistration?.Staff_No) ?? null;
+  const badgeReady = Boolean(selectedRegistration && selectedRegistration.Host_Approval_Status === 'Approved' && selectedRegistration.Verified);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      registrations.forEach((record) => {
+        if (record.Host_Approval_Status !== 'Pending' || !record.Host_Request_At) return;
+        const elapsed = Date.now() - new Date(record.Host_Request_At).getTime();
+        if (elapsed > 1000 * 60 * 3) {
+          updateRegistrationHostApproval(record.R_id, 'Expired', record.Staff_No);
+        }
+      });
+    }, 15000);
+
+    return () => window.clearInterval(intervalId);
+  }, [registrations, updateRegistrationHostApproval]);
 
   const handleCaptureSuccess = (photo: string) => {
     setVisitorImage(photo);
@@ -89,6 +103,7 @@ export function SecurityDashboard() {
       Phone: form.Phone,
       Email: form.Email,
       Sex: form.Sex,
+      Host_Approval_Status: 'Pending',
       Verified: false,
     };
 
@@ -109,8 +124,33 @@ export function SecurityDashboard() {
     setChecklist((current) => ({ ...current, photoCaptured: !!visitorImage }));
   };
 
-  const handleDecision = (status: 'Approved' | 'Rejected') => {
+  const handleRequestStaffApproval = () => {
     if (!selectedRegistration) return;
+
+    const staffMember = staff.find((member) => member.Staff_No === selectedRegistration.Staff_No);
+    if (!staffMember) {
+      return;
+    }
+
+    requestStaffApproval(selectedRegistration.R_id, staffMember.Staff_No);
+    setChecklist((current) => ({ ...current, hostContacted: true }));
+  };
+
+  const sendWhatsAppToStaff = () => {
+    if (!selectedStaff?.Phone_No) return;
+
+    const number = selectedStaff.Phone_No.replace(/\D/g, '');
+    if (!number) return;
+
+    const message = encodeURIComponent(
+      `Hello ${selectedStaff.Name}, a visitor named ${selectedRegistration?.Name ?? 'this visitor'} is waiting for your approval. Please respond so security can verify access.`,
+    );
+
+    window.open(`https://wa.me/${number}?text=${message}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDecision = (status: 'Approved' | 'Rejected') => {
+    if (!selectedRegistration || selectedRegistration.Host_Approval_Status !== 'Approved') return;
 
     const isChecklistReady = Object.values(checklist).every(Boolean);
 
@@ -138,6 +178,7 @@ export function SecurityDashboard() {
     });
   };
 
+
   return (
     <div className="space-y-6 p-4 lg:p-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -148,11 +189,13 @@ export function SecurityDashboard() {
         <SearchBar value={search} onChange={setSearch} placeholder="Search visitor name or phone" />
       </div>
 
+
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-500">Pending checks</p>
           <p className="mt-2 text-3xl font-bold text-slate-900">{summary.pending}</p>
         </div>
+
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-500">Approved</p>
           <p className="mt-2 text-3xl font-bold text-emerald-600">{summary.approved}</p>
@@ -201,8 +244,19 @@ export function SecurityDashboard() {
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">Host staff ID</span>
-              <input value={form.Staff_No} onChange={(e) => setForm({ ...form, Staff_No: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+              <span className="mb-2 block text-sm font-medium text-slate-700">Staff to visit</span>
+              <select
+                value={form.Staff_No}
+                onChange={(e) => setForm({ ...form, Staff_No: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              >
+                <option value="">Select staff</option>
+                {staff.map((member) => (
+                  <option key={member.Staff_No} value={member.Staff_No}>
+                    {member.Name} ({member.POS})
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-slate-700">ID Type</span>
@@ -273,7 +327,9 @@ export function SecurityDashboard() {
                     <p className="font-semibold text-slate-800">{registration.Name}</p>
                     <p className="text-sm text-slate-500">{registration.Purpose} visit • {registration.Phone}</p>
                   </div>
-                  <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">{registration.Verified ? 'Checked' : 'Pending'}</span>
+                  <span className={`rounded-full px-2 py-1 text-xs font-semibold ${registration.Host_Approval_Status === 'Approved' ? 'bg-emerald-100 text-emerald-800' : registration.Host_Approval_Status === 'Rejected' ? 'bg-red-100 text-red-800' : registration.Host_Approval_Status === 'Expired' ? 'bg-amber-100 text-amber-800' : 'bg-amber-100 text-amber-800'}`}>
+                    {registration.Host_Approval_Status ?? 'Pending'}
+                  </span>
                 </div>
                 <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
                   <Clock3 className="h-3.5 w-3.5" />
@@ -284,12 +340,51 @@ export function SecurityDashboard() {
           </div>
 
           {selectedRegistration && (
-            <div className="mt-5 space-y-2">
+            <div className="mt-5 space-y-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Staff approval status</p>
+                <p className="mt-2 text-lg font-semibold text-slate-900">{selectedRegistration.Host_Approval_Status ?? 'Pending'}</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {selectedStaff ? `${selectedStaff.Name} (${selectedStaff.POS})` : 'No staff profile found for this visit.'}
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {selectedStaff?.isAvailable === false
+                    ? 'Selected staff member is currently offline.'
+                    : selectedStaff
+                      ? 'Selected staff member is online and available.'
+                      : 'No staff profile found for this visit.'}
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button type="button" onClick={handleRequestStaffApproval} className="flex-1 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500">
+                  Request staff approval
+                </button>
+                <button type="button" onClick={() => setSelectedRegistrationId(selectedRegistration.R_id)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+                  Retry
+                </button>
+              </div>
+
+              {selectedStaff && selectedStaff.isAvailable === false && (
+                <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  <p>
+                    Staff is offline. Use an alternative or retry later. Badge printing remains locked until a valid staff approval is received.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={sendWhatsAppToStaff}
+                    className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-200"
+                  >
+                    Send WhatsApp message
+                  </button>
+                </div>
+              )}
+
               <div className="mt-3 flex gap-2">
-                <button type="button" onClick={() => handleDecision('Approved')} className="flex-1 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500">
+                <button type="button" onClick={() => handleDecision('Approved')} disabled={selectedRegistration.Host_Approval_Status !== 'Approved'} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold text-white ${selectedRegistration.Host_Approval_Status === 'Approved' ? 'bg-emerald-600 hover:bg-emerald-500' : 'cursor-not-allowed bg-slate-300'}`}>
                   Approve
                 </button>
-                <button type="button" onClick={() => handleDecision('Rejected')} className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-500">
+                <button type="button" onClick={() => handleDecision('Rejected')} disabled={selectedRegistration.Host_Approval_Status !== 'Approved'} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold text-white ${selectedRegistration.Host_Approval_Status === 'Approved' ? 'bg-red-600 hover:bg-red-500' : 'cursor-not-allowed bg-slate-300'}`}>
                   Reject
                 </button>
               </div>
@@ -314,12 +409,18 @@ export function SecurityDashboard() {
             <h2 className="text-xl font-semibold text-slate-900">Printable badge preview</h2>
             <button
               type="button"
-              onClick={() => window.print()}
-              className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white"
+              onClick={() => badgeReady && window.print()}
+              disabled={!badgeReady}
+              className={`rounded-xl px-3 py-2 text-sm font-semibold text-white ${badgeReady ? 'bg-slate-900 hover:bg-slate-800' : 'cursor-not-allowed bg-slate-300'}`}
             >
-              Print badge
+              {badgeReady ? 'Print badge' : 'Waiting for staff approval'}
             </button>
           </div>
+          {!badgeReady && (
+            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              Badge printing is locked until the host approves this visitor and security completes verification.
+            </div>
+          )}
           <div className="flex justify-center">
             <VisitorBadge
               registration={selectedRegistration}

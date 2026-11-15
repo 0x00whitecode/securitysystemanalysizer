@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(match);
-    localStorage.setItem(SESSION_KEY, JSON.stringify(match));
+    window.localStorage.setItem(SESSION_KEY, JSON.stringify(match));
     return match;
   }, []);
 

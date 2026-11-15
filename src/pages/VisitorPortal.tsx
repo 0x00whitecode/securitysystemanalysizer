@@ -30,6 +30,7 @@ export function VisitorPortal() {
       Phone: form.Phone,
       Email: form.Email,
       Sex: form.Sex,
+      Host_Approval_Status: 'Pending',
       Verified: false,
     });
 
@@ -64,6 +65,21 @@ export function VisitorPortal() {
                 <option>Female</option>
                 <option>Male</option>
                 <option>Prefer not to say</option>
+              </select>
+            </label>
+            <label className="block md:col-span-2">
+              <span className="mb-2 block text-sm font-medium text-slate-700">Staff to visit</span>
+              <select
+                value={form.Staff_No}
+                onChange={(event) => setForm({ ...form, Staff_No: event.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              >
+                <option value="">Select a staff member</option>
+                {staff.map((member) => (
+                  <option key={member.Staff_No} value={member.Staff_No}>
+                    {member.Name} ({member.POS})
+                  </option>
+                ))}
               </select>
             </label>
             <label className="block md:col-span-2">

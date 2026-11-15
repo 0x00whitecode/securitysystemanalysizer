@@ -1,9 +1,7 @@
 # AGENT.MD (v2): Bolt.new Master System Specification & Build Instructions
 ## Automated Visitor Record Management System with Real-Time Alerts and Video Capturing
 
-> **SYSTEM INSTRUCTION FOR BOLT.NEW AI AGENT**: You are an expert full-stack web architect and software engineer executing a project build on **bolt.new**. Your task is to construct the complete, fully functional **Automated Visitor Record Management System** grounded in the research requirements of Chapters 1 and 3. Follow the software architecture, database schemas, component trees, and feature workflows defined in this document.
 
----
 
 ## 1. System Mission & Operational Context
 

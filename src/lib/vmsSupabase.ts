@@ -48,7 +48,7 @@ const normalizeStaff = (entry: Partial<Staff>): Staff => ({
   Email: String(entry.Email ?? ''),
   Dob: String(entry.Dob ?? ''),
   Address: String(entry.Address ?? ''),
-  Degree: String(entry.Degree ?? ''),
+  Qualification: String(entry.Qualification ?? ''),
   POS: String(entry.POS ?? ''),
   Phone_No: String(entry.Phone_No ?? ''),
   Sex: String(entry.Sex ?? ''),
@@ -65,6 +65,10 @@ const normalizeRegistration = (entry: Partial<Registration>): Registration => ({
   Phone: String(entry.Phone ?? ''),
   Email: String(entry.Email ?? ''),
   Sex: String(entry.Sex ?? ''),
+  Host_Approval_Status: (entry.Host_Approval_Status as Registration['Host_Approval_Status']) ?? 'Pending',
+  Host_Request_At: entry.Host_Request_At ? String(entry.Host_Request_At) : undefined,
+  Host_Approval_At: entry.Host_Approval_At ? String(entry.Host_Approval_At) : undefined,
+  Host_Approved_By: entry.Host_Approved_By ? String(entry.Host_Approved_By) : undefined,
   Verified: Boolean(entry.Verified),
 });
 
@@ -213,11 +217,15 @@ export async function persistDatabaseToSupabase(database: DatabaseState) {
 }
 
 export async function loginWithSupabase(username: string, password: string): Promise<User | null> {
+  const normalizedUsername = username.trim();
+  const normalizedPassword = password.trim();
   const database = await readDatabaseFromSupabase();
-  const match = database.users.find(
+  const users = Array.isArray(database.users) && database.users.length > 0 ? database.users : getInitialDatabase().users;
+
+  const match = users.find(
     (candidate) =>
-      candidate.Username.toLowerCase() === username.trim().toLowerCase() &&
-      candidate.Password === password &&
+      candidate.Username.toLowerCase() === normalizedUsername.toLowerCase() &&
+      String(candidate.Password).trim() === normalizedPassword &&
       !candidate.isBlocked,
   );
 

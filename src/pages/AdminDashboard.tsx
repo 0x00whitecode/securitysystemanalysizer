@@ -13,7 +13,8 @@ export function AdminDashboard() {
     Email: '',
     POS: '',
     Phone_No: '',
-    Degree: '',
+    Qualification: '',
+    Access: 'Staff' as User['Access'],
   });
   const [roleForm, setRoleForm] = useState({
     userId: String(users[0]?.id ?? ''),
@@ -110,7 +111,7 @@ export function AdminDashboard() {
       Email: staffForm.Email,
       Dob: new Date().toISOString().slice(0, 10),
       Address: 'New staff record',
-      Degree: staffForm.Degree || 'Not specified',
+      Qualification: staffForm.Qualification || 'Not specified',
       POS: staffForm.POS,
       Phone_No: staffForm.Phone_No || 'Not provided',
       Sex: 'Not specified',
@@ -124,13 +125,13 @@ export function AdminDashboard() {
       Name: staffForm.Name,
       Username: staffForm.Name.toLowerCase().replace(/\s+/g, '.'),
       Password: '12345',
-      Access: 'Staff',
+      Access: staffForm.Access,
       Staff_No: staffForm.Staff_No,
       isBlocked: false,
     };
 
     addUser(newUser);
-    setStaffForm({ Staff_No: '', Name: '', Email: '', POS: '', Phone_No: '', Degree: '' });
+    setStaffForm({ Staff_No: '', Name: '', Email: '', POS: '', Phone_No: '', Qualification: '', Access: 'Staff' });
   };
 
   const handleRoleUpdate = () => {
@@ -188,13 +189,21 @@ export function AdminDashboard() {
               <input value={staffForm.Phone_No} onChange={(e) => setStaffForm({ ...staffForm, Phone_No: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">Degree</span>
-              <input value={staffForm.Degree} onChange={(e) => setStaffForm({ ...staffForm, Degree: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+              <span className="mb-2 block text-sm font-medium text-slate-700">Qualification</span>
+              <input value={staffForm.Qualification} onChange={(e) => setStaffForm({ ...staffForm, Qualification: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-slate-700">Role</span>
+              <select value={staffForm.Access} onChange={(e) => setStaffForm({ ...staffForm, Access: e.target.value as User['Access'] })} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                <option value="Staff">Staff</option>
+                <option value="Security">Security</option>
+                <option value="Admin">Admin</option>
+              </select>
             </label>
           </div>
 
           <button type="button" onClick={addNewStaff} className="mt-5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500">
-            Add staff member
+            Add personnel
           </button>
         </div>
 

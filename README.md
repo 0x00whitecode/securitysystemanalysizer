@@ -15,7 +15,10 @@ Then open the app in your browser:
 
 - http://localhost:5173/
 
-If port 5173 is already occupied, the app may open on a nearby port such as http://localhost:5174/.
+If port 5173 is already occupied, the app may open on a nearby port such as. 
+
+
+
 
 ## 2. Open the login page
 
@@ -38,7 +41,7 @@ If the credentials are invalid, the app shows an error message:
 
 The app includes built-in demo users for testing.
 
-| Role | Username | Password | Dashboard |
+| Role | Username | Password | Dashboar d |
 | --- | --- | --- | --- |
 | Admin | admin | admin123 | Admin dashboard |
 | Security | security | security123 | Security verification workstation |
