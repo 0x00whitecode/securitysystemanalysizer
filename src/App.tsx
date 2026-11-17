@@ -90,8 +90,8 @@ function AppLayout() {
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">MAU</p>
-              <h1 className="text-lg font-bold text-slate-900">MAU SYSTEM</h1>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">VMS</p>
+              <h1 className="text-lg font-bold text-slate-900">Visitor Access</h1>
             </div>
           </div>
 

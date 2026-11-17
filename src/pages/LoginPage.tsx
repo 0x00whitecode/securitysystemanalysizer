@@ -30,9 +30,9 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-sky-500 p-8 text-white lg:p-10">
           <div className="flex items-center gap-3 text-lg font-semibold">
             <ShieldCheck className="h-8 w-8" />
-            MAU SYSTEM Access Portal
+            Visitor Management Access Portal
           </div>
-          <h1 className="mt-12 text-4xl font-bold tracking-tight">Modibbo Adama University, Yola</h1>
+          <h1 className="mt-12 text-4xl font-bold tracking-tight">Secure Entry Management</h1>
           <p className="mt-4 max-w-md text-blue-50/90">
             Sign in to manage approvals, track visitor movement, and protect campus access across the university community.
           </p>

@@ -12,9 +12,9 @@ export function HomePage({ onStartVisitorFlow, onViewDashboards }: HomePageProps
         <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
           <div>
             <p className="mb-4 inline-flex rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-50">
-              MAU SYSTEM
+              VMS PORTAL
             </p>
-            <h1 className="max-w-xl text-4xl font-bold tracking-tight lg:text-6xl">Secure campus access for Modibbo Adama University, Yola.</h1>
+            <h1 className="max-w-xl text-4xl font-bold tracking-tight lg:text-6xl">Secure visitor access for your organization.</h1>
             <p className="mt-5 max-w-xl text-base text-blue-50/90 lg:text-lg">
               Manage visitor enrolment, identity verification, host notifications, and printable campus access passes from one modern university dashboard.
             </p>

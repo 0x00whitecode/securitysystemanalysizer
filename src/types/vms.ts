@@ -78,6 +78,8 @@ export interface VideoCapture {
   Captured_At: string;
 }
 
+export type VisitorApprovalState = 'Pending' | 'Approved' | 'Rejected' | 'Expired';
+
 export type MovementStatus = 'Checked In' | 'At Reception' | 'Inside Premises' | 'Exited';
 
 export interface MovementLog {

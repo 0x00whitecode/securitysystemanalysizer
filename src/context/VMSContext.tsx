@@ -215,6 +215,10 @@ export function VMSProvider({ children }: { children: ReactNode }) {
     const target = database.registrations.find((entry) => entry.R_id === registrationId);
     if (!target) return null;
 
+    if (['Approved', 'Rejected', 'Expired'].includes(target.Host_Approval_Status ?? 'Pending')) {
+      return target;
+    }
+
     const updated: Registration = {
       ...target,
       Host_Approval_Status: status,
@@ -326,6 +330,20 @@ export function VMSProvider({ children }: { children: ReactNode }) {
     Remarks: string;
     Alert_Status: 'Pending' | 'Sent';
   }) => {
+    const registration = database.registrations.find((entry) => entry.R_id === decision.R_id);
+    if (!registration) {
+      throw new Error('Visitor registration not found.');
+    }
+
+    if (registration.Host_Approval_Status !== 'Approved') {
+      throw new Error('Entry is blocked until the host approves the visitor.');
+    }
+
+    const existingSecurityRecord = database.securityRecords.find((entry) => entry.R_id === decision.R_id);
+    if (existingSecurityRecord) {
+      return existingSecurityRecord;
+    }
+
     const securityEntry: SecurityRecord = {
       Security_ID: Date.now(),
       R_id: decision.R_id,
@@ -340,17 +358,20 @@ export function VMSProvider({ children }: { children: ReactNode }) {
       Alert_Status: decision.Alert_Status,
     };
 
-    const registration = database.registrations.find((entry) => entry.R_id === decision.R_id);
-    const nextRegistrations = database.registrations.map((entry) =>
+    const nextRegistrations: Registration[] = database.registrations.map((entry) =>
       entry.R_id === decision.R_id
-        ? { ...entry, Verified: decision.Visitor_Status === 'Approved', Host_Approval_Status: entry.Host_Approval_Status ?? 'Approved' }
+        ? {
+            ...entry,
+            Verified: decision.Visitor_Status === 'Approved',
+            Host_Approval_Status: (decision.Visitor_Status === 'Rejected' ? 'Rejected' : 'Approved') as Registration['Host_Approval_Status'],
+          }
         : entry,
     );
 
     const alertMessage =
       decision.Visitor_Status === 'Approved'
-        ? `${registration?.Name ?? 'Visitor'} has been approved and is now cleared to enter the facility.`
-        : `${registration?.Name ?? 'Visitor'} was rejected after security verification.`;
+        ? `${registration.Name} has been approved and is now cleared to enter the facility.`
+        : `${registration.Name} was rejected after security verification.`;
 
     const nextAlert: Alert = {
       Alert_ID: Date.now() + 1,
@@ -369,7 +390,7 @@ export function VMSProvider({ children }: { children: ReactNode }) {
         ? {
             Move_ID: Date.now() + 2,
             R_id: decision.R_id,
-            Visitor_Name: registration?.Name ?? 'Visitor',
+            Visitor_Name: registration.Name,
             Location: 'Gatehouse',
             Status: 'Checked In',
             Last_Updated: new Date().toISOString(),

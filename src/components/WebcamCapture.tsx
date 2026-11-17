@@ -67,9 +67,12 @@ export function WebcamCapture({ isOpen, onClose, onCapture }: WebcamCaptureProps
   };
 
   const startRecording = () => {
-    if (!streamRef.current) return;
+    if (!streamRef.current || typeof MediaRecorder === 'undefined') {
+      setStatus('Camera recording is not supported in this browser');
+      return;
+    }
 
-    const recorder = new MediaRecorder(streamRef.current, { mimeType: 'video/webm' });
+    const recorder = new MediaRecorder(streamRef.current, { mimeType: MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : 'video/mp4' });
     chunksRef.current = [];
     mediaRecorderRef.current = recorder;
 
@@ -80,11 +83,20 @@ export function WebcamCapture({ isOpen, onClose, onCapture }: WebcamCaptureProps
     };
 
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'video/webm' });
+      if (blob.size === 0) {
+        setStatus('Recording failed: no video data was captured');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUrl = reader.result as string;
-        onCapture(photo ?? '', dataUrl);
+        if (photo) {
+          onCapture(photo, dataUrl);
+        } else {
+          onCapture(dataUrl, dataUrl);
+        }
         onClose();
       };
       reader.readAsDataURL(blob);
@@ -95,7 +107,9 @@ export function WebcamCapture({ isOpen, onClose, onCapture }: WebcamCaptureProps
     setStatus('Recording...');
 
     setTimeout(() => {
-      recorder.stop();
+      if (recorder.state !== 'inactive') {
+        recorder.stop();
+      }
       setRecording(false);
       setStatus('Video captured');
     }, 5000);
